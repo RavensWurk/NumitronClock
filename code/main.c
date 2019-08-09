@@ -15,6 +15,14 @@
 
 #define abs(x) (x<0?-x:x)
 
+typedef struct {
+    uint8_t seconds;
+    uint8_t minutes;
+    uint8_t hours;
+    uint8_t mode;
+    uint8_t lastSeconds;
+} ClockTime_t;
+
 uint8_t readRegister(unsigned char readReg) {
     uint8_t response = 0;
 
@@ -77,12 +85,20 @@ void writeRegister(unsigned char writeReg, unsigned char value) {
     mssp1_clearIRQ();
 }
 
-void updateIndicator(uint8_t currentSeconds) {
-    static uint8_t indicator = 8;
-    static uint8_t lastSeconds = 0;
+void updateTime(ClockTime_t* time) {
+    time->lastSeconds = time->seconds;
+    time->seconds = readRegister(0x02);
+    time->minutes = readRegister(0x03);
+    uint8_t hours = readRegister(0x04);
 
-    if (lastSeconds != currentSeconds) {
-        lastSeconds = currentSeconds;
+    time->mode = (hours & 0x80) >> 7;
+    time->hours = hours & 0x7F;
+}
+
+void updateIndicator(ClockTime_t clockTime) {
+    static uint8_t indicator = 8;
+
+    if (clockTime.lastSeconds != clockTime.seconds) {
         indicator = indicator << 1;
 
         if (indicator > 8 || indicator == 0) {
@@ -104,27 +120,22 @@ inline void blinkStatus(uint8_t leftSide, uint8_t rightSide) {
     }
 }
 
-void handleBothButtonsPressed(uint8_t seconds, uint8_t hours, uint8_t* maxHoursA, uint8_t* maxHoursB, int8_t* buttonHoldTime) {
+void handleBothButtonsPressed(ClockTime_t clockTime, uint16_t runningTime, uint16_t* buttonHoldTime) {
     if (*buttonHoldTime == -1) {
-        *buttonHoldTime = seconds;
-    } else if (abs(seconds - (*buttonHoldTime)) >= 5) {
+        *buttonHoldTime = runningTime;
+    } else if (abs(runningTime - (*buttonHoldTime)) >= 5) {
         *buttonHoldTime = -1;
         uint8_t leftSide = 0xFF;
         uint8_t rightSide = 0xFF;
 
-        if (*maxHoursA == 0x20) {
-            *maxHoursA = 0x10;
-            *maxHoursB = 3;
-
-            if (hours > 12) {
-                writeRegister(0x04, hours - 0x12);
+        if (clockTime.mode == 0) {
+            if (clockTime.hours > 12) {
+                writeRegister(0x04, (clockTime.hours - 0x12) | 0x80);
             }
 
             rightSide = 0x12;
         } else {
-            *maxHoursA = 0x20;
-            *maxHoursB = 4;
-
+            writeRegister(0x04, clockTime.hours & 0x7F);
             leftSide = 0x24;
         }
 
@@ -132,63 +143,70 @@ void handleBothButtonsPressed(uint8_t seconds, uint8_t hours, uint8_t* maxHoursA
     }
 }
 
-void handleMinuteButton(uint8_t minutes) {
-    minutes++;
+void handleMinuteButton(ClockTime_t clockTime) {
+    clockTime.minutes++;
 
-    if ((minutes & 0x0F) >= 10) {
-        minutes += 0x10;
-        minutes &= 0xF0;
+    if ((clockTime.minutes & 0x0F) >= 10) {
+        clockTime.minutes += 0x10;
+        clockTime.minutes &= 0xF0;
 
-        if ((minutes & 0xF0) >= 0x60) {
-            minutes = 0;
+        if ((clockTime.minutes & 0xF0) >= 0x60) {
+            clockTime.minutes = 0;
         }
     }
 
-    LATC = minutes;
-    writeRegister(0x03, minutes);
+    LATC = clockTime.minutes;
+    writeRegister(0x03, clockTime.minutes);
     __delay_ms(150);
 }
 
-void handleHourButton(uint8_t hours, uint8_t maxHoursA, uint8_t maxHoursB) {
-    hours++;
+void handleHourButton(ClockTime_t clockTime) {
+    clockTime.hours++;
 
-    if ((hours & 0x0F) >= 10) {
-        hours += 0x10;
-        hours &= 0xF0;
+    if ((clockTime.hours & 0x0F) >= 10) {
+        clockTime.hours += 0x10;
+        clockTime.hours &= 0xF0;
     }
 
-    if (((hours & 0xF0) >= maxHoursA) && ((hours & 0x0F) >= maxHoursB)) {
-        hours = 0;
+    if (clockTime.mode == 0 && ((clockTime.hours & 0xF0) >= 0x20) && ((clockTime.hours & 0x0F) >= 0x04)) {
+         clockTime.hours = 0;
+    } else if (clockTime.mode == 1 && ((clockTime.hours & 0xF0) >= 0x10) && ((clockTime.hours & 0x0F) >= 0x03)) {
+        clockTime.hours = 1;
     }
 
-    LATA = hours;
-    writeRegister(0x04, hours);
+    LATA = clockTime.hours;
+    writeRegister(0x04, clockTime.hours | (clockTime.mode << 7));
     __delay_ms(150);
 }
 
-void handleButtons(uint8_t seconds, uint8_t minutes, uint8_t hours) {
-    static uint8_t maxHoursA;
-    static uint8_t maxHoursB;
-    static int8_t buttonHoldTime;
+void handleButtons(ClockTime_t clockTime) {
+    static uint16_t buttonHoldTime;
+    static uint16_t runningTime;
+    static uint8_t lastTime;
 
     // The XC8 compiler doesn't seem to initialise static function variables
-    // correctly and just sets them to 0 regardless fo what you ask for. Just
+    // correctly and just sets them to 0 regardless of what you ask for. Just
     // set them here instead.
-    if (maxHoursA == 0) {
-        maxHoursA = 0x20;
-        maxHoursB = 4;
+    if (buttonHoldTime == 0) {
         buttonHoldTime = -1;
+        runningTime = 0;
+        lastTime = 0;
+    }
+
+    if (clockTime.seconds != lastTime) {
+        runningTime++;
+        lastTime = clockTime.seconds;
     }
 
     if (PORTBbits.RB2 && PORTBbits.RB3) {
-        handleBothButtonsPressed(seconds, hours, &maxHoursA, &maxHoursB, &buttonHoldTime);
+        handleBothButtonsPressed(clockTime, runningTime, &buttonHoldTime);
     } else {
         buttonHoldTime = -1;
 
         if (PORTBbits.RB2) {
-            handleMinuteButton(minutes);
+            handleMinuteButton(clockTime);
         } else if (PORTBbits.RB3) {
-            handleHourButton(hours, maxHoursA, maxHoursB);
+            handleHourButton(clockTime);
         }
     }
 }
@@ -214,16 +232,17 @@ void main(void) {
     i2c1_driver_open();
     mssp1_disableIRQ();
 
+    ClockTime_t clockTime = {0};
+
     while (1) {
-        uint8_t seconds = readRegister(0x02);
-        uint8_t minutes = readRegister(0x03);
-        uint8_t hours = readRegister(0x04);
-        LATC = minutes;
-        LATA = hours;
+        updateTime(&clockTime);
 
-        updateIndicator(seconds);
+        LATC = clockTime.minutes;
+        LATA = clockTime.hours;
+
+        updateIndicator(clockTime);
+        handleButtons(clockTime);
+
         __delay_ms(50);
-
-        handleButtons(seconds, minutes, hours);
     }
 }
