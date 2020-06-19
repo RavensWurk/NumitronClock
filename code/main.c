@@ -92,7 +92,7 @@ void updateTime(ClockTime_t* time) {
     uint8_t hours = readRegister(0x04);
 
     time->mode = (hours & 0x80) >> 7;
-    time->hours = hours & 0x7F;
+    time->hours = hours & 0x3F;
 }
 
 void updateIndicator(ClockTime_t clockTime) {
