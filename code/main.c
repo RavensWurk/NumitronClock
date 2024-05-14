@@ -13,6 +13,25 @@
 #include "i2c1_driver.h"
 #include <xc.h>
 
+//#define RTC_PCF8583
+#define RTC_DS1307
+
+#define READ_FLAG 1
+
+#if defined(RTC_PCF8583)
+    #define RTC_ADDRESS 0xA0
+    #define RTC_SEC_REG 0x02
+    #define RTC_MIN_REG 0x03 
+    #define RTC_HOUR_REG 0x04
+#elif defined(RTC_DS1307)
+    #define RTC_ADDRESS 0xD0
+    #define RTC_SEC_REG 0x00
+    #define RTC_MIN_REG 0x01
+    #define RTC_HOUR_REG 0x02
+#else
+    #error "No RTC defined"
+#endif
+
 #define abs(x) (x<0?-x:x)
 
 typedef struct {
@@ -30,7 +49,7 @@ uint8_t readRegister(unsigned char readReg) {
     mssp1_waitForEvent();
     mssp1_clearIRQ();
 
-    i2c1_driver_TXData(0xA0);
+    i2c1_driver_TXData(RTC_ADDRESS);
     mssp1_waitForEvent();
     mssp1_clearIRQ();
 
@@ -42,7 +61,7 @@ uint8_t readRegister(unsigned char readReg) {
     mssp1_waitForEvent();
     mssp1_clearIRQ();
 
-    i2c1_driver_TXData(0xA1);
+    i2c1_driver_TXData(RTC_ADDRESS | READ_FLAG);
     mssp1_waitForEvent();
     mssp1_clearIRQ();
 
@@ -68,7 +87,7 @@ void writeRegister(unsigned char writeReg, unsigned char value) {
     mssp1_waitForEvent();
     mssp1_clearIRQ();
 
-    i2c1_driver_TXData(0xA0);
+    i2c1_driver_TXData(RTC_ADDRESS);
     mssp1_waitForEvent();
     mssp1_clearIRQ();
 
@@ -87,9 +106,9 @@ void writeRegister(unsigned char writeReg, unsigned char value) {
 
 void updateTime(ClockTime_t* time) {
     time->lastSeconds = time->seconds;
-    time->seconds = readRegister(0x02);
-    time->minutes = readRegister(0x03);
-    uint8_t hours = readRegister(0x04);
+    time->seconds = readRegister(RTC_SEC_REG);
+    time->minutes = readRegister(RTC_MIN_REG);
+    uint8_t hours = readRegister(RTC_HOUR_REG);
 
     time->mode = (hours & 0x80) >> 7;
     time->hours = hours & 0x3F;
@@ -130,12 +149,12 @@ void handleBothButtonsPressed(ClockTime_t clockTime, uint16_t runningTime, uint1
 
         if (clockTime.mode == 0) {
             if (clockTime.hours > 12) {
-                writeRegister(0x04, (clockTime.hours - 0x12) | 0x80);
+                writeRegister(RTC_HOUR_REG, (clockTime.hours - 0x12) | 0x80);
             }
 
             rightSide = 0x12;
         } else {
-            writeRegister(0x04, clockTime.hours & 0x7F);
+            writeRegister(RTC_HOUR_REG, clockTime.hours & 0x7F);
             leftSide = 0x24;
         }
 
@@ -156,7 +175,7 @@ void handleMinuteButton(ClockTime_t clockTime) {
     }
 
     LATC = clockTime.minutes;
-    writeRegister(0x03, clockTime.minutes);
+    writeRegister(RTC_MIN_REG, clockTime.minutes);
     __delay_ms(150);
 }
 
@@ -175,7 +194,7 @@ void handleHourButton(ClockTime_t clockTime) {
     }
 
     LATA = clockTime.hours;
-    writeRegister(0x04, clockTime.hours | (clockTime.mode << 7));
+    writeRegister(RTC_HOUR_REG, clockTime.hours | (clockTime.mode << 7));
     __delay_ms(150);
 }
 
@@ -233,6 +252,12 @@ void main(void) {
     mssp1_disableIRQ();
 
     ClockTime_t clockTime = {0};
+    
+    // The DS1307 boots up with the oscillator disabled - this enables the oscillator.
+    // Not needed for PCF8583
+#ifdef RTC_DS1307
+    writeRegister(0, 0);
+#endif
 
     while (1) {
         updateTime(&clockTime);

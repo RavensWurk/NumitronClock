@@ -5,7 +5,7 @@
   <confs>
     <conf name="C18_18F87K22" type="2">
       <platformToolSN>:=MPLABComm-USB-Microchip:=&lt;vid>04D8:=&lt;pid>9012:=&lt;rev>0100:=&lt;man>Microchip Technology Incorporated:=&lt;prod>MPLAB PICkit 4:=&lt;sn>BUR181414390:=&lt;drv>x:=&lt;xpt>b:=end</platformToolSN>
-      <languageToolchainDir>/opt/microchip/xc8/v2.05/bin</languageToolchainDir>
+      <languageToolchainDir>/opt/microchip/xc8/v2.46/bin</languageToolchainDir>
       <mdbdebugger version="1">
         <placeholder1>place holder 1</placeholder1>
         <placeholder2>place holder 2</placeholder2>
@@ -23,7 +23,7 @@
     </conf>
     <conf name="XC8_18F87K22" type="2">
       <platformToolSN></platformToolSN>
-      <languageToolchainDir>/opt/microchip/xc8/v2.05/bin</languageToolchainDir>
+      <languageToolchainDir>/opt/microchip/xc8/v2.46/bin</languageToolchainDir>
       <mdbdebugger version="1">
         <placeholder1>place holder 1</placeholder1>
         <placeholder2>place holder 2</placeholder2>
@@ -95,7 +95,7 @@
     </conf>
     <conf name="XC8_18F1220" type="2">
       <platformToolSN></platformToolSN>
-      <languageToolchainDir>/opt/microchip/xc8/v2.05/bin</languageToolchainDir>
+      <languageToolchainDir>/opt/microchip/xc8/v2.46/bin</languageToolchainDir>
       <mdbdebugger version="1">
         <placeholder1>place holder 1</placeholder1>
         <placeholder2>place holder 2</placeholder2>
@@ -149,7 +149,7 @@
     </conf>
     <conf name="XC8_18F14K50" type="2">
       <platformToolSN></platformToolSN>
-      <languageToolchainDir>/opt/microchip/xc8/v2.05/bin</languageToolchainDir>
+      <languageToolchainDir>/opt/microchip/xc8/v2.46/bin</languageToolchainDir>
       <mdbdebugger version="1">
         <placeholder1>place holder 1</placeholder1>
         <placeholder2>place holder 2</placeholder2>
@@ -203,7 +203,7 @@
     </conf>
     <conf name="XC8_18F46J11" type="2">
       <platformToolSN></platformToolSN>
-      <languageToolchainDir>/opt/microchip/xc8/v2.05/bin</languageToolchainDir>
+      <languageToolchainDir>/opt/microchip/xc8/v2.46/bin</languageToolchainDir>
       <mdbdebugger version="1">
         <placeholder1>place holder 1</placeholder1>
         <placeholder2>place holder 2</placeholder2>
@@ -256,8 +256,8 @@
       </runprofile>
     </conf>
     <conf name="XC8_18F97J60" type="2">
-      <platformToolSN></platformToolSN>
-      <languageToolchainDir>/opt/microchip/xc8/v2.05/bin</languageToolchainDir>
+      <platformToolSN>noToolString</platformToolSN>
+      <languageToolchainDir>/opt/microchip/xc8/v2.46/bin</languageToolchainDir>
       <mdbdebugger version="1">
         <placeholder1>place holder 1</placeholder1>
         <placeholder2>place holder 2</placeholder2>
